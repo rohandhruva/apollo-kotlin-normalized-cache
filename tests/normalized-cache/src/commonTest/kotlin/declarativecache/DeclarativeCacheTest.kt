@@ -4,8 +4,6 @@ import com.apollographql.cache.normalized.CacheManager
 import com.apollographql.cache.normalized.api.CacheHeaders
 import com.apollographql.cache.normalized.api.CacheKey
 import com.apollographql.cache.normalized.api.CacheResolver
-import com.apollographql.cache.normalized.api.FieldPolicyCacheResolver
-import com.apollographql.cache.normalized.api.KeyFieldsCacheKeyGenerator
 import com.apollographql.cache.normalized.api.ResolverContext
 import com.apollographql.cache.normalized.memory.MemoryCacheFactory
 import com.apollographql.cache.normalized.testing.runTest
@@ -51,7 +49,8 @@ class DeclarativeCacheTest {
 
   @Test
   fun typePolicyWithAbstractTypes() = runTest {
-    val cacheManager = CacheManager(MemoryCacheFactory(), cacheKeyGenerator = KeyFieldsCacheKeyGenerator(Cache.keyFields))
+    val cacheManager =
+      CacheManager(MemoryCacheFactory(), cacheKeyGenerator = com.apollographql.cache.normalized.api.TypePolicyCacheKeyGenerator(Cache.typePolicies))
 
     val type2Data = GetType2Query.Data(GetType2Query.Type2(__typename = "Type2", type2Field = "type1Field", interface2KeyField = "42"))
     cacheManager.writeOperation(GetType2Query(), type2Data)
@@ -152,8 +151,8 @@ class DeclarativeCacheTest {
     val booksCacheResponse = cacheManager.readOperation(booksQuery)
     val booksData = booksCacheResponse.data!!
     assertEquals(2, booksData.books.size)
-    assertEquals(GetBooksQuery.Book("Promo", "42", "Book"), booksData.books[0])
-    assertEquals(GetBooksQuery.Book("Other Book", "43", "Book"), booksData.books[1])
+    assertEquals(GetBooksQuery.Book(__typename = "Book", title = "Promo", isbn = "42"), booksData.books[0])
+    assertEquals(GetBooksQuery.Book(__typename = "Book", title = "Other Book", isbn = "43"), booksData.books[1])
   }
 
   @Test
@@ -169,7 +168,8 @@ class DeclarativeCacheTest {
           }
         }
 
-        return FieldPolicyCacheResolver.resolveField(context)
+        @Suppress("DEPRECATION")
+        return com.apollographql.cache.normalized.api.FieldPolicyCacheResolver.resolveField(context)
       }
     }
     val cacheManager = CacheManager(MemoryCacheFactory(), cacheResolver = cacheResolver)

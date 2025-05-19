@@ -161,13 +161,13 @@ object DefaultCacheResolver : CacheResolver {
  */
 class CacheControlCacheResolver(
     private val maxAgeProvider: MaxAgeProvider,
-    private val delegateResolver: CacheResolver = FieldPolicyCacheResolver,
+    private val delegateResolver: CacheResolver = FieldPolicyCacheResolver(keyScope = CacheKey.Scope.TYPE),
 ) : CacheResolver {
   /**
    * Creates a new [CacheControlCacheResolver] with no max ages. Use this constructor if you want to consider only the expiration dates.
    */
   constructor(
-      delegateResolver: CacheResolver = FieldPolicyCacheResolver,
+      delegateResolver: CacheResolver = FieldPolicyCacheResolver(keyScope = CacheKey.Scope.TYPE),
   ) : this(
       maxAgeProvider = DefaultMaxAgeProvider,
       delegateResolver = delegateResolver,
@@ -228,9 +228,34 @@ class CacheControlCacheResolver(
 }
 
 /**
- * A cache resolver that uses `@fieldPolicy` directives to resolve fields and delegates to [DefaultCacheResolver] otherwise
+ * A cache resolver that uses `@fieldPolicy` directives to resolve fields and delegates to [DefaultCacheResolver] otherwise.
+ *
+ * Note: this namespaces the ids with the **schema** type, will lead to cache misses for:
+ * - unions
+ * - interfaces that have a `@typePolicy` on subtypes.
+ *
+ * If the ids are unique across the whole service, use `FieldPolicyCacheResolver(keyScope = CacheKey.Scope.SERVICE)`. Otherwise there is
+ * no way to resolve the cache key automatically for those cases.
  */
-object FieldPolicyCacheResolver : CacheResolver {
+@Deprecated("Use FieldPolicyCacheResolver(keyScope) instead")
+object FieldPolicyCacheResolver : CacheResolver by FieldPolicyCacheResolver(keyScope = CacheKey.Scope.TYPE)
+
+/**
+ * A cache resolver that uses `@fieldPolicy` directives to resolve fields and delegates to [DefaultCacheResolver] otherwise.
+ *
+ * Note: using a [CacheKey.Scope.TYPE] `keyScope` namespaces the ids with the **schema** type, which will lead to cache misses for:
+ * - unions
+ * - interfaces that have a `@typePolicy` on subtypes.
+ *
+ * If the ids are unique across the whole service, use [CacheKey.Scope.SERVICE]. Otherwise there is no way to resolve the cache keys
+ * automatically for those cases.
+ *
+ * @param keyScope the scope of the computed cache keys. Use [CacheKey.Scope.TYPE] to namespace the keys by the schema type name, or
+ * [CacheKey.Scope.SERVICE] if the ids are unique across the whole service.
+ */
+fun FieldPolicyCacheResolver(
+    keyScope: CacheKey.Scope = CacheKey.Scope.TYPE,
+) = object : CacheResolver {
   override fun resolveField(context: ResolverContext): Any? {
     val keyArgsValues = context.field.argumentValues(context.variables) { it.definition.isKey }.values
     if (keyArgsValues.isEmpty()) {
@@ -248,12 +273,20 @@ object FieldPolicyCacheResolver : CacheResolver {
           val keyArgsValue = keyArgsValues.first() as? List<*>
           if (keyArgsValue != null && keyArgsValue.firstOrNull() !is List<*>) {
             return keyArgsValue.map {
-              CacheKey(type.rawType().name, it.toString())
+              if (keyScope == CacheKey.Scope.TYPE) {
+                CacheKey(type.rawType().name, it.toString())
+              } else {
+                CacheKey(it.toString())
+              }
             }
           }
         }
       }
     }
-    return CacheKey(type.rawType().name, keyArgsValues.map { it.toString() })
+    return if (keyScope == CacheKey.Scope.TYPE) {
+      CacheKey(type.rawType().name, keyArgsValues.map { it.toString() })
+    } else {
+      CacheKey(keyArgsValues.map { it.toString() })
+    }
   }
 }

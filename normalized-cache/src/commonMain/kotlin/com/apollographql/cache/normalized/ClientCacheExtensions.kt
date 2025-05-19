@@ -22,6 +22,7 @@ import com.apollographql.apollo.mpp.currentTimeMillis
 import com.apollographql.apollo.network.http.HttpInfo
 import com.apollographql.cache.normalized.api.ApolloCacheHeaders
 import com.apollographql.cache.normalized.api.CacheHeaders
+import com.apollographql.cache.normalized.api.CacheKey
 import com.apollographql.cache.normalized.api.CacheKeyGenerator
 import com.apollographql.cache.normalized.api.CacheResolver
 import com.apollographql.cache.normalized.api.DefaultEmbeddedFieldsProvider
@@ -31,7 +32,6 @@ import com.apollographql.cache.normalized.api.DefaultRecordMerger
 import com.apollographql.cache.normalized.api.EmbeddedFieldsProvider
 import com.apollographql.cache.normalized.api.EmptyMetadataGenerator
 import com.apollographql.cache.normalized.api.FieldKeyGenerator
-import com.apollographql.cache.normalized.api.FieldPolicyCacheResolver
 import com.apollographql.cache.normalized.api.MaxAgeProvider
 import com.apollographql.cache.normalized.api.MetadataGenerator
 import com.apollographql.cache.normalized.api.NormalizedCacheFactory
@@ -67,7 +67,7 @@ fun ApolloClient.Builder.normalizedCache(
     @Suppress("DEPRECATION")
     cacheKeyGenerator: CacheKeyGenerator = com.apollographql.cache.normalized.api.TypePolicyCacheKeyGenerator,
     metadataGenerator: MetadataGenerator = EmptyMetadataGenerator,
-    cacheResolver: CacheResolver = FieldPolicyCacheResolver,
+    cacheResolver: CacheResolver = com.apollographql.cache.normalized.api.FieldPolicyCacheResolver(keyScope = CacheKey.Scope.TYPE),
     recordMerger: RecordMerger = DefaultRecordMerger,
     fieldKeyGenerator: FieldKeyGenerator = DefaultFieldKeyGenerator,
     embeddedFieldsProvider: EmbeddedFieldsProvider = DefaultEmbeddedFieldsProvider,

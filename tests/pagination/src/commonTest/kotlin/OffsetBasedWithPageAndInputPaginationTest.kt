@@ -6,10 +6,10 @@ import com.apollographql.apollo.api.Executable
 import com.apollographql.apollo.api.Optional
 import com.apollographql.apollo.api.json.ApolloJsonElement
 import com.apollographql.cache.normalized.CacheManager
+import com.apollographql.cache.normalized.api.CacheKey
 import com.apollographql.cache.normalized.api.DefaultFieldKeyGenerator
 import com.apollographql.cache.normalized.api.FieldKeyContext
 import com.apollographql.cache.normalized.api.FieldKeyGenerator
-import com.apollographql.cache.normalized.api.FieldPolicyCacheResolver
 import com.apollographql.cache.normalized.api.FieldRecordMerger
 import com.apollographql.cache.normalized.api.MetadataGenerator
 import com.apollographql.cache.normalized.api.MetadataGeneratorContext
@@ -45,7 +45,7 @@ class OffsetBasedWithPageAndInputPaginationTest {
     val cacheManager = CacheManager(
         normalizedCacheFactory = cacheFactory,
         metadataGenerator = OffsetPaginationMetadataGenerator("UserPage"),
-        cacheResolver = FieldPolicyCacheResolver,
+        cacheResolver = com.apollographql.cache.normalized.api.FieldPolicyCacheResolver(keyScope = CacheKey.Scope.TYPE),
         recordMerger = FieldRecordMerger(OffsetPaginationFieldMerger()),
         fieldKeyGenerator = UsersFieldKeyGenerator,
     )
