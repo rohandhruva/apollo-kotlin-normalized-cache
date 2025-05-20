@@ -26,10 +26,6 @@ The Kdoc API reference can be found at:<br/>
 
 ## ⚠️ Disclaimer
 
-This version is not yet stable and is subject to change. It is recommended to experiment with it in
-non-critical projects/modules, or behind a feature flag.
+During the alpha phase, the API is still subject to change, although we will try to make changes in non-breaking ways.
 
-In particular,
-
-- there are no guarantees about the format of the cached data, so you should assume that it may be lost when upgrading
-- performance and size may not be optimal
+For now it is recommended to experiment with this library in non-critical projects/modules, or behind a feature flag.
