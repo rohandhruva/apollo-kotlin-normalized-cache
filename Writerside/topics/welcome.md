@@ -5,7 +5,7 @@ This is [Apollo Kotlin](https://github.com/apollographql/apollo-kotlin)'s Normal
 For an introduction please read the Normalized Cache [documentation](https://www.apollographql.com/docs/kotlin/caching/normalized-cache).
 
 Note: the Normalized Cache used to be part of the [Apollo Kotlin main repository](https://github.com/apollographql/apollo-kotlin).
-It is now hosted in a dedicated repository and published at its own cadence and versioning scheme.
+It is now hosted in this dedicated repository and published at its own cadence and versioning scheme.
 
 ## Use in your project
 
