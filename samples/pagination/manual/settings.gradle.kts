@@ -1,6 +1,5 @@
 pluginManagement {
     repositories {
-        mavenLocal()
         maven {
             url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
         }
@@ -11,7 +10,6 @@ pluginManagement {
 }
 dependencyResolutionManagement {
     repositories {
-        mavenLocal()
         maven {
             url = uri("https://s01.oss.sonatype.org/content/repositories/snapshots/")
         }
