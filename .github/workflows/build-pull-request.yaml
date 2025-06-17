@@ -2,6 +2,9 @@ name: Build pull request
 
 on: pull_request
 
+env:
+  DEVELOCITY_ACCESS_KEY: ${{ secrets.DEVELOCITY_ACCESS_KEY }}
+
 jobs:
   build-pull-request:
     runs-on: macos-latest
