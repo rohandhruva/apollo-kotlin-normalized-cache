@@ -81,6 +81,7 @@ fun ApolloClient.Builder.normalizedCache(
     fieldKeyGenerator: FieldKeyGenerator = DefaultFieldKeyGenerator,
     embeddedFieldsProvider: EmbeddedFieldsProvider = DefaultEmbeddedFieldsProvider,
     maxAgeProvider: MaxAgeProvider = DefaultMaxAgeProvider,
+    enableOptimisticUpdates: Boolean = false,
     writeToCacheAsynchronously: Boolean = false,
 ): ApolloClient.Builder {
   return cacheManager(
@@ -93,6 +94,7 @@ fun ApolloClient.Builder.normalizedCache(
           fieldKeyGenerator = fieldKeyGenerator,
           embeddedFieldsProvider = embeddedFieldsProvider,
           maxAgeProvider = maxAgeProvider,
+          enableOptimisticUpdates = enableOptimisticUpdates,
       ), writeToCacheAsynchronously
   )
 }
@@ -104,6 +106,7 @@ fun ApolloClient.Builder.normalizedCache(
     maxAges: Map<String, MaxAge>,
     defaultMaxAge: Duration,
     keyScope: CacheKey.Scope,
+    enableOptimisticUpdates: Boolean,
     writeToCacheAsynchronously: Boolean,
 ): ApolloClient.Builder {
   val cacheKeyGenerator = if (typePolicies.isEmpty()) {
@@ -145,6 +148,7 @@ fun ApolloClient.Builder.normalizedCache(
       cacheResolver = cacheResolver,
       recordMerger = recordMerger,
       maxAgeProvider = maxAgeProvider,
+      enableOptimisticUpdates = enableOptimisticUpdates,
       writeToCacheAsynchronously = writeToCacheAsynchronously,
   )
 }
@@ -403,9 +407,9 @@ private object StoreExpirationDateInterceptor : ApolloInterceptor {
 
       val age = headers.get("age")?.toIntOrNull()
       val expires = if (age != null) {
-        currentTimeMillis() / 1000 + maxAge - age
+        request.clock() / 1000 + maxAge - age
       } else {
-        currentTimeMillis() / 1000 + maxAge
+        request.clock() / 1000 + maxAge
       }
 
       return@map it.newBuilder()
@@ -494,7 +498,6 @@ internal val <D : Operation.Data> ApolloRequest<D>.watchContext: WatchContext?
 
 internal val <D : Operation.Data> ApolloRequest<D>.errorsReplaceCachedValues
   get() = executionContext[ErrorsReplaceCachedValuesContext]?.value ?: false
-
 
 class CacheInfo private constructor(
     val cacheStartMillis: Long,
@@ -723,3 +726,30 @@ fun <D : Operation.Data> ApolloResponse.Builder<D>.cacheHeaders(cacheHeaders: Ca
 
 val <D : Operation.Data> ApolloResponse<D>.cacheHeaders
   get() = executionContext[CacheHeadersContext]?.value ?: CacheHeaders.NONE
+
+
+internal class ClockContext(val value: () -> Long) : ExecutionContext.Element {
+  override val key: ExecutionContext.Key<*>
+    get() = Key
+
+  companion object Key : ExecutionContext.Key<ClockContext>
+}
+
+internal val ExecutionOptions.clock: (() -> Long)
+  get() = executionContext[ClockContext]?.value ?: { currentTimeMillis() }
+
+/**
+ * Sets the clock used to:
+ * - compute the expiration date (see [storeExpirationDate])
+ * - get the received date (see [storeReceivedDate])
+ * - comparing these dates to the current time in [CacheControlCacheResolver]
+ *
+ * This is useful for testing purposes only.
+ *
+ * @param clock returns the current time in milliseconds since the epoch.
+ */
+fun <T> MutableExecutionOptions<T>.clock(clock: () -> Long): T {
+  addExecutionContext(ClockContext(clock))
+  @Suppress("UNCHECKED_CAST")
+  return this as T
+}
