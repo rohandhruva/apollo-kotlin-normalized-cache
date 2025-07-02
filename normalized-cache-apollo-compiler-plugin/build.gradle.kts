@@ -1,5 +1,3 @@
-import com.gradleup.librarian.gradle.Librarian
-
 plugins {
   id("org.jetbrains.kotlin.jvm")
 }
@@ -12,10 +10,12 @@ dependencies {
   testImplementation(gradleTestKit())
   implementation(libs.apollo.ast)
   implementation(libs.kotlin.poet)
+  implementation(project(":normalized-cache-definitions"))
   testImplementation(libs.kotlin.test)
 }
 
 tasks.withType(Test::class.java).configureEach {
   dependsOn("publishAllPublicationsToLocalRepository")
+  dependsOn(":normalized-cache-definitions:publishAllPublicationsToLocalRepository")
   dependsOn(":normalized-cache:publishAllPublicationsToLocalRepository")
 }

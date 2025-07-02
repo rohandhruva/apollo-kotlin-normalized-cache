@@ -1,0 +1,8 @@
+public final class com/apollographql/cache/definitions/CacheDefinitionsKt {
+	public static final fun getCache0_1ForeignSchema ()Lcom/apollographql/apollo/ast/ForeignSchema;
+}
+
+public final class com/apollographql/cache/definitions/VersionKt {
+	public static final field VERSION Ljava/lang/String;
+}
+

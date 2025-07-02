@@ -3,14 +3,12 @@
 package com.apollographql.cache.apollocompilerplugin.internal
 
 import com.apollographql.apollo.annotations.ApolloExperimental
-import com.apollographql.apollo.ast.ForeignSchema
 import com.apollographql.apollo.ast.builtinForeignSchemas
 import com.apollographql.apollo.ast.internal.SchemaValidationOptions
 import com.apollographql.apollo.ast.parseAsGQLDocument
 import com.apollographql.apollo.ast.validateAsSchema
 import com.apollographql.apollo.compiler.ApolloCompiler
-import com.apollographql.apollo.compiler.ApolloCompilerPlugin
-import com.apollographql.apollo.compiler.ApolloCompilerPluginLogger
+import com.apollographql.cache.definitions.cache0_1ForeignSchema
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -67,7 +65,7 @@ class GetMaxAgesTest {
         .validateAsSchema(
             SchemaValidationOptions(
                 addKotlinLabsDefinitions = true,
-                foreignSchemas = builtinForeignSchemas() + ForeignSchema("cache", "v0.1", cacheGQLDefinitions)
+                foreignSchemas = builtinForeignSchemas() + cache0_1ForeignSchema
             )
         )
         .getOrThrow()
@@ -137,7 +135,7 @@ class GetMaxAgesTest {
           .validateAsSchema(
               SchemaValidationOptions(
                   addKotlinLabsDefinitions = true,
-                  foreignSchemas = builtinForeignSchemas() + ForeignSchema("cache", "v0.1", cacheGQLDefinitions)
+                  foreignSchemas = builtinForeignSchemas() + cache0_1ForeignSchema
               )
           )
           .getOrThrow()

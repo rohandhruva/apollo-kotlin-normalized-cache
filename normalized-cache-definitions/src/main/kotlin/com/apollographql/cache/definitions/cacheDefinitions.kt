@@ -1,5 +1,7 @@
-package com.apollographql.cache.apollocompilerplugin.internal
+package com.apollographql.cache.definitions
 
+import com.apollographql.apollo.annotations.ApolloExperimental
+import com.apollographql.apollo.ast.ForeignSchema
 import com.apollographql.apollo.ast.parseAsGQLDocument
 
 private val cacheDefinitions_0_1 = """
@@ -64,4 +66,6 @@ private val cacheDefinitions_0_1 = """
   ) repeatable on OBJECT | INTERFACE
 """.trimIndent()
 
-internal val cacheGQLDefinitions = cacheDefinitions_0_1.parseAsGQLDocument().getOrThrow().definitions
+
+@OptIn(ApolloExperimental::class)
+val cache0_1ForeignSchema = ForeignSchema("cache", "v0.1", cacheDefinitions_0_1.parseAsGQLDocument().getOrThrow().definitions)

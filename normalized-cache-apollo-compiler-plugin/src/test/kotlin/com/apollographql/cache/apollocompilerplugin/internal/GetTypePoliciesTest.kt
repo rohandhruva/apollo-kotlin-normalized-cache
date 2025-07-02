@@ -3,11 +3,11 @@
 package com.apollographql.cache.apollocompilerplugin.internal
 
 import com.apollographql.apollo.annotations.ApolloExperimental
-import com.apollographql.apollo.ast.ForeignSchema
 import com.apollographql.apollo.ast.SourceAwareException
 import com.apollographql.apollo.ast.internal.SchemaValidationOptions
 import com.apollographql.apollo.ast.parseAsGQLDocument
 import com.apollographql.apollo.ast.validateAsSchema
+import com.apollographql.cache.definitions.cache0_1ForeignSchema
 import kotlin.test.Ignore
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -100,7 +100,7 @@ class GetTypePoliciesTest {
         .validateAsSchema(
             SchemaValidationOptions(
                 addKotlinLabsDefinitions = true,
-                foreignSchemas = listOf(ForeignSchema("cache", "v0.1", cacheGQLDefinitions))
+                foreignSchemas = listOf(cache0_1ForeignSchema)
             )
         ).getOrThrow()
 
@@ -142,7 +142,7 @@ class GetTypePoliciesTest {
         .validateAsSchema(
             SchemaValidationOptions(
                 addKotlinLabsDefinitions = true,
-                foreignSchemas = listOf(ForeignSchema("cache", "v0.1", cacheGQLDefinitions))
+                foreignSchemas = listOf(cache0_1ForeignSchema)
             )
         ).getOrThrow()
 

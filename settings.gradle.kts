@@ -11,8 +11,9 @@ apply(from = "gradle/repositories.gradle.kts")
 apply(from = "gradle/ge.gradle")
 
 include(
+    "test-utils",
     "normalized-cache",
     "normalized-cache-sqlite",
+    "normalized-cache-definitions",
     "normalized-cache-apollo-compiler-plugin",
-    "test-utils",
 )
