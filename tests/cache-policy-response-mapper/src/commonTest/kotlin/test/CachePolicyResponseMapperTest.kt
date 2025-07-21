@@ -1,13 +1,12 @@
 package test
 
 import com.apollographql.apollo.ApolloClient
-import com.apollographql.apollo.api.ApolloResponse
 import com.apollographql.apollo.api.Error
 import com.apollographql.cache.normalized.CacheManager
 import com.apollographql.cache.normalized.FetchPolicy
+import com.apollographql.cache.normalized.allowCachedErrors
+import com.apollographql.cache.normalized.allowPartialResults
 import com.apollographql.cache.normalized.cacheManager
-import com.apollographql.cache.normalized.cacheMissException
-import com.apollographql.cache.normalized.cachePolicyResponseMapper
 import com.apollographql.cache.normalized.fetchPolicy
 import com.apollographql.cache.normalized.memory.MemoryCacheFactory
 import com.apollographql.cache.normalized.sql.SqlNormalizedCacheFactory
@@ -79,7 +78,6 @@ class StoreErrorsTest {
     ApolloClient.Builder()
         .serverUrl(mockServer.url())
         .cacheManager(cacheManager)
-        .cachePolicyResponseMapper(cachePolicyResponseMapper)
         .build()
         .use { apolloClient ->
           val networkResult = apolloClient.query(MeWithNickNameQuery())
@@ -105,6 +103,7 @@ class StoreErrorsTest {
           )
 
           val cacheResult = apolloClient.query(MeWithNickNameQuery())
+              .allowCachedErrors(true)
               .execute()
           assertEquals(
               networkResult.data,
@@ -168,7 +167,6 @@ class StoreErrorsTest {
     ApolloClient.Builder()
         .serverUrl(mockServer.url())
         .cacheManager(cacheManager)
-        .cachePolicyResponseMapper(cachePolicyResponseMapper)
         .build()
         .use { apolloClient ->
           val networkResult = apolloClient.query(UsersQuery(listOf("1", "2", "3")))
@@ -205,6 +203,7 @@ class StoreErrorsTest {
 
           val cacheResult = apolloClient.query(UsersQuery(listOf("1", "2", "3")))
               .fetchPolicy(FetchPolicy.CacheOnly)
+              .allowCachedErrors(true)
               .execute()
           assertEquals(
               networkResult.data,
@@ -258,7 +257,6 @@ class StoreErrorsTest {
     ApolloClient.Builder()
         .serverUrl(mockServer.url())
         .cacheManager(cacheManager)
-        .cachePolicyResponseMapper(cachePolicyResponseMapper)
         .build()
         .use { apolloClient ->
           val networkResult = apolloClient.query(MeWithNickNameQuery())
@@ -285,6 +283,8 @@ class StoreErrorsTest {
 
           val cacheResult = apolloClient.query(MeWithNickNameAndProjectQuery())
               .fetchPolicy(FetchPolicy.CacheOnly)
+              .allowPartialResults(true)
+              .allowCachedErrors(true)
               .execute()
           assertEquals(
               MeWithNickNameAndProjectQuery.Data(
@@ -308,29 +308,4 @@ class StoreErrorsTest {
         }
   }
 
-}
-
-private val cachePolicyResponseMapper: (ApolloResponse<*>, FetchPolicy) -> ApolloResponse<*> = { response, fetchPolicy ->
-  when (fetchPolicy) {
-    FetchPolicy.CacheFirst -> {
-      val cacheMissException = response.errors.orEmpty().mapNotNull { it.cacheMissException }.reduceOrNull { acc, e ->
-        acc.addSuppressed(e)
-        acc
-      }
-      if (cacheMissException != null) {
-        response.newBuilder()
-            .exception(cacheMissException)
-            .data(null)
-            .errors(null)
-            .build()
-      } else {
-        response
-      }
-    }
-
-    FetchPolicy.CacheOnly -> response
-    FetchPolicy.NetworkFirst -> response
-    FetchPolicy.NetworkOnly -> response
-    FetchPolicy.CacheAndNetwork -> response
-  }
 }

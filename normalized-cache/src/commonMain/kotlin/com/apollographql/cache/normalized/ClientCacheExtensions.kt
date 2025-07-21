@@ -754,26 +754,28 @@ fun <T> MutableExecutionOptions<T>.clock(clock: () -> Long): T {
   return this as T
 }
 
-internal class CachePolicyResponseMapperContext(val value: (ApolloResponse<*>, FetchPolicy) -> ApolloResponse<*>) :
-  ExecutionContext.Element {
+internal class AllowPartialResults(val value: Boolean) : ExecutionContext.Element {
   override val key: ExecutionContext.Key<*>
     get() = Key
 
-  companion object Key : ExecutionContext.Key<CachePolicyResponseMapperContext>
+  companion object Key : ExecutionContext.Key<AllowPartialResults>
 }
 
-private val defaultCachePolicyResponseMapper: (ApolloResponse<*>, FetchPolicy) -> ApolloResponse<*> = { response, _ ->
-  response.errorsAsException()
+internal val ExecutionOptions.allowPartialResults: Boolean
+  get() = executionContext[AllowPartialResults]?.value ?: false
+
+fun <T> MutableExecutionOptions<T>.allowPartialResults(allowPartialResults: Boolean): T =
+  addExecutionContext(AllowPartialResults(allowPartialResults))
+
+internal class AllowCachedErrors(val value: Boolean) : ExecutionContext.Element {
+  override val key: ExecutionContext.Key<*>
+    get() = Key
+
+  companion object Key : ExecutionContext.Key<AllowCachedErrors>
 }
 
-internal val ExecutionOptions.cachePolicyResponseMapper: ((ApolloResponse<*>, FetchPolicy) -> ApolloResponse<*>)
-  get() = executionContext[CachePolicyResponseMapperContext]?.value ?: defaultCachePolicyResponseMapper
+internal val ExecutionOptions.allowCachedErrors: Boolean
+  get() = executionContext[AllowCachedErrors]?.value ?: false
 
-/**
- * Sets a response mapper that will be used inside the built-in fetch policies interceptors to transform the responses from the cache.
- */
-fun <T> MutableExecutionOptions<T>.cachePolicyResponseMapper(mapper: (ApolloResponse<*>, FetchPolicy) -> ApolloResponse<*>): T {
-  addExecutionContext(CachePolicyResponseMapperContext(mapper))
-  @Suppress("UNCHECKED_CAST")
-  return this as T
-}
+fun <T> MutableExecutionOptions<T>.allowCachedErrors(allowCachedErrors: Boolean): T =
+  addExecutionContext(AllowCachedErrors(allowCachedErrors))

@@ -34,8 +34,7 @@ val CacheOnlyInterceptor = object : ApolloInterceptor {
             .fetchFromCache(true)
             .build()
     ).map {
-      @Suppress("UNCHECKED_CAST")
-      request.cachePolicyResponseMapper(it, FetchPolicy.CacheOnly) as ApolloResponse<D>
+      it.errorsAsException(allowPartialResults = request.allowPartialResults, allowCachedErrors = request.allowCachedErrors)
     }
   }
 }
@@ -60,10 +59,7 @@ val CacheFirstInterceptor = object : ApolloInterceptor {
               .newBuilder()
               .fetchFromCache(true)
               .build()
-      ).single().let {
-        @Suppress("UNCHECKED_CAST")
-        request.cachePolicyResponseMapper(it, FetchPolicy.CacheFirst) as ApolloResponse<D>
-      }
+      ).single().errorsAsException(allowPartialResults = request.allowPartialResults, allowCachedErrors = request.allowCachedErrors)
       emit(cacheResponse.newBuilder().isLast(cacheResponse.exception == null).build())
       if (cacheResponse.exception == null) {
         return@flow
@@ -109,10 +105,7 @@ val NetworkFirstInterceptor = object : ApolloInterceptor {
               .newBuilder()
               .fetchFromCache(true)
               .build()
-      ).single().let {
-        @Suppress("UNCHECKED_CAST")
-        request.cachePolicyResponseMapper(it, FetchPolicy.NetworkFirst) as ApolloResponse<D>
-      }
+      ).single().errorsAsException(allowPartialResults = request.allowPartialResults, allowCachedErrors = request.allowCachedErrors)
       emit(cacheResponse)
     }
   }
@@ -129,10 +122,7 @@ val CacheAndNetworkInterceptor = object : ApolloInterceptor {
               .newBuilder()
               .fetchFromCache(true)
               .build()
-      ).single().let {
-        @Suppress("UNCHECKED_CAST")
-        request.cachePolicyResponseMapper(it, FetchPolicy.CacheAndNetwork) as ApolloResponse<D>
-      }
+      ).single().errorsAsException(allowPartialResults = request.allowPartialResults, allowCachedErrors = request.allowCachedErrors)
 
       emit(cacheResponse.newBuilder().isLast(false).build())
 
@@ -159,6 +149,57 @@ fun <D : Operation.Data> ApolloResponse<D>.errorsAsException(): ApolloResponse<D
         .data(null)
         .errors(null)
         .build()
+  }
+}
+
+private fun <D : Operation.Data> ApolloResponse<D>.errorsAsException(
+    allowPartialResults: Boolean,
+    allowCachedErrors: Boolean,
+): ApolloResponse<D> {
+  return if (allowPartialResults && allowCachedErrors) {
+    this
+  } else {
+    val cacheMissException = if (allowPartialResults) {
+      null
+    } else {
+      errors.orEmpty().mapNotNull { it.cacheMissException }.reduceOrNull { acc, e ->
+        acc.addSuppressed(e)
+        acc
+      }
+    }
+    val cachedErrorException = if (allowCachedErrors) {
+      null
+    } else {
+      errors.orEmpty().mapNotNull { if (it.cacheMissException != null) null else ApolloGraphQLException(it) }.reduceOrNull { acc, e ->
+        acc.addSuppressed(e)
+        acc
+      }
+    }
+    when {
+      cacheMissException != null -> {
+        newBuilder()
+            .exception(cacheMissException.apply {
+              if (cachedErrorException != null) {
+                addSuppressed(cachedErrorException)
+              }
+            })
+            .data(null)
+            .errors(null)
+            .build()
+      }
+
+      cachedErrorException != null -> {
+        newBuilder()
+            .exception(cachedErrorException)
+            .data(null)
+            .errors(null)
+            .build()
+      }
+
+      else -> {
+        this
+      }
+    }
   }
 }
 
