@@ -6,6 +6,7 @@ com.apollographql.cache.normalized
 com.apollographql.cache.normalized.api
 com.apollographql.cache.normalized.internal
 com.apollographql.cache.normalized.memory
+com.apollographql.cache.normalized.options
 module:normalized-cache-apollo-compiler-plugin
 com.apollographql.cache.apollocompilerplugin
 module:normalized-cache-sqlite
