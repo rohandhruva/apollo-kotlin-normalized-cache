@@ -1,8 +1,9 @@
 type Query {
   me: User!
   users(ids: [ID!]!): [User]!
+  allUsers: [User]!
   project(id: ID! = "1"): Project
-  user(category: Category!): User!
+  user(category: Category!): User
   someInt: Int
   someInt2: Int
 }
