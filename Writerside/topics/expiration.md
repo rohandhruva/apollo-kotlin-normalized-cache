@@ -89,7 +89,7 @@ To declare the maximum age of types and fields in the schema, use the `@cacheCon
 ```
 # First import the directives
 extend schema @link(
-  url: "https://specs.apollo.dev/cache/v0.1",
+  url: "https://specs.apollo.dev/cache/v0.3",
   import: ["@cacheControl", "@cacheControlField"]
 )
 
@@ -113,5 +113,5 @@ cacheResolver = CacheControlCacheResolver(
     maxAges = Cache.maxAges,
     defaultMaxAge = 1.hours,
   )
-),
+)
 ```
