@@ -6,6 +6,13 @@ PUT_CHANGELOG_HERE
   - Configuring connection fields with `@typePolicy(connectionFields: "...")` is deprecated. Instead, apply `@connection` to the connection types.
   - Configuring pagination arguments with `@fieldPolicy(forField: "...", paginationArgs: "...")` is deprecated. Instead, configure a `FieldKeyGenerator` on your cache.
   - The API of `EmbeddedFieldsProvider` has been tweaked to allow determining if fields should be embedded field by field, rather than all at once based on the type.
+- `@typePolicy` and `@fieldPolicy` are now in the `cache` specification (#231)
+    - After a deprecation cycle, they will be removed from the `kotlin_labs` specification. Here is how you should import these directives in your `extra.graphqls`:
+  ```graphql
+  extend schema
+  @link(url: "https://specs.apollo.dev/kotlin_labs/v0.5")
+  @link(url: "https://specs.apollo.dev/cache/v0.3", import: ["@typePolicy", "@fieldPolicy"])
+  ```
 
 # v1.0.0-alpha.6
 _2025-08-21_
