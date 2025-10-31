@@ -36,6 +36,8 @@ private object Symbols {
   val Seconds = MemberName(Duration.Companion::class.asTypeName(), "seconds", isExtension = true)
   val TypePolicy = ClassName("com.apollographql.cache.normalized.api", "TypePolicy")
   val EmbeddedFields = ClassName("com.apollographql.cache.normalized.api", "EmbeddedFields")
+  val FieldPolicies = ClassName("com.apollographql.cache.normalized.api", "FieldPolicies")
+  val FieldPolicy = FieldPolicies.nestedClass("FieldPolicy")
   val ApolloClientBuilder = ClassName("com.apollographql.apollo", "ApolloClient", "Builder")
   val NormalizedCacheFactory = ClassName("com.apollographql.cache.normalized.api", "NormalizedCacheFactory")
   val CacheKeyScope = ClassName("com.apollographql.cache.normalized.api", "CacheKey", "Scope")
@@ -59,6 +61,7 @@ internal class CacheSchemaCodeGenerator(
             ?: environment.arguments["packageName"] as? String
             ?: throw IllegalArgumentException("com.apollographql.cache.packageName argument is required and must be a String")) + ".cache"
     val typePolicies = validSchema.getTypePolicies()
+    val fieldPolicies = validSchema.getFieldPolicies()
     val connectionTypes = validSchema.getConnectionTypes()
     val embeddedFields = validSchema.getEmbeddedFields(typePolicies, connectionTypes)
     val file = FileSpec.builder(packageName, "Cache")
@@ -66,6 +69,7 @@ internal class CacheSchemaCodeGenerator(
             TypeSpec.objectBuilder("Cache")
                 .addProperty(maxAgeProperty(validSchema))
                 .addProperty(typePoliciesProperty(typePolicies))
+                .addProperty(fieldPoliciesProperty(fieldPolicies))
                 .addProperty(embeddedFieldsProperty(embeddedFields))
                 .addProperty(connectionTypesProperty(connectionTypes))
                 .addFunction(cacheFunction())
@@ -145,7 +149,7 @@ internal class CacheSchemaCodeGenerator(
           typePolicies.forEach { (type, typePolicy) ->
             addStatement("%S to %T(", type, Symbols.TypePolicy)
             withIndent {
-              addStatement("keyFields = setOf(")
+              addStatement("keyFields = listOf(")
               withIndent {
                 typePolicy.keyFields.forEach { keyField ->
                   addStatement("%S, ", keyField)
@@ -191,6 +195,49 @@ internal class CacheSchemaCodeGenerator(
         .build()
   }
 
+  private fun fieldPoliciesProperty(fieldPolicies: Map<String, FieldPolicies>): PropertySpec {
+    val initializer = if (fieldPolicies.isEmpty()) {
+      CodeBlock.of("emptyMap()")
+    } else {
+      CodeBlock.builder().apply {
+        add("mapOf(\n")
+        withIndent {
+          fieldPolicies.forEach { (type, fieldPolicies) ->
+            addStatement("%S to %T(", type, Symbols.FieldPolicies)
+            withIndent {
+              addStatement("fieldPolicies = mapOf(")
+              withIndent {
+                fieldPolicies.fieldPolicies.forEach { (fieldName, fieldPolicy) ->
+                  addStatement("%S to %T(", fieldName, Symbols.FieldPolicy)
+                  withIndent {
+                    addStatement("keyArgs = listOf(")
+                    fieldPolicy.keyArgs.forEach { keyArg ->
+                      withIndent {
+                        addStatement("%S, ", keyArg)
+                      }
+                    }
+                    add("),\n")
+                  }
+                  add("),\n")
+                }
+              }
+              add("),\n")
+            }
+            addStatement("),")
+          }
+        }
+        add(")")
+      }
+          .build()
+    }
+    return PropertySpec.builder(
+        name = "fieldPolicies",
+        type = MAP.parameterizedBy(STRING, Symbols.FieldPolicies)
+    )
+        .initializer(initializer)
+        .build()
+  }
+
   private fun embeddedFieldsProperty(embeddedFields: Map<String, EmbeddedFields>): PropertySpec {
     val initializer = if (embeddedFields.isEmpty()) {
       CodeBlock.of("emptyMap()")
@@ -201,7 +248,7 @@ internal class CacheSchemaCodeGenerator(
           embeddedFields.forEach { (type, embeddedField) ->
             addStatement("%S to %T(", type, Symbols.EmbeddedFields)
             withIndent {
-              addStatement("embeddedFields = setOf(")
+              addStatement("embeddedFields = listOf(")
               withIndent {
                 embeddedField.embeddedFields.forEach { embeddedField ->
                   addStatement("%S, ", embeddedField)
@@ -250,6 +297,7 @@ internal class CacheSchemaCodeGenerator(
                     "return %M(\n⇥" +
                         "normalizedCacheFactory = normalizedCacheFactory,\n" +
                         "typePolicies = typePolicies,\n" +
+                        "fieldPolicies = fieldPolicies,\n" +
                         "connectionTypes = connectionTypes, \n" +
                         "embeddedFields = embeddedFields, \n" +
                         "maxAges = maxAges,\n" +
@@ -260,7 +308,7 @@ internal class CacheSchemaCodeGenerator(
                         ")",
                     Symbols.NormalisedCacheExtension,
                 )
-                .build()
+                .build(),
         )
         .build()
   }

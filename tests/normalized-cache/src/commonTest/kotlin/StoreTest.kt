@@ -9,8 +9,10 @@ import com.apollographql.apollo.testing.enqueueTestResponse
 import com.apollographql.cache.normalized.CacheManager
 import com.apollographql.cache.normalized.FetchPolicy
 import com.apollographql.cache.normalized.api.CacheKey
+import com.apollographql.cache.normalized.api.DefaultCacheKeyGenerator
+import com.apollographql.cache.normalized.api.DefaultCacheResolver
 import com.apollographql.cache.normalized.api.IdCacheKeyGenerator
-import com.apollographql.cache.normalized.api.IdCacheKeyResolver
+import com.apollographql.cache.normalized.api.IdCacheResolver
 import com.apollographql.cache.normalized.apolloStore
 import com.apollographql.cache.normalized.cacheManager
 import com.apollographql.cache.normalized.fetchPolicy
@@ -44,7 +46,7 @@ class StoreTest {
 
   private fun setUp() {
     cacheManager =
-      CacheManager(MemoryCacheFactory(), cacheKeyGenerator = IdCacheKeyGenerator(keyScope = CacheKey.Scope.SERVICE), cacheResolver = IdCacheKeyResolver(keyScope = CacheKey.Scope.SERVICE))
+      CacheManager(MemoryCacheFactory(), cacheKeyGenerator = IdCacheKeyGenerator(keyScope = CacheKey.Scope.SERVICE), cacheResolver = IdCacheResolver(keyScope = CacheKey.Scope.SERVICE))
     apolloClient = ApolloClient.Builder().networkTransport(QueueTestNetworkTransport()).cacheManager(cacheManager).build()
   }
 
@@ -208,7 +210,8 @@ class StoreTest {
     storeAllFriends()
     assertFriendIsCached("1000", "Luke Skywalker")
 
-    val newCacheManager = CacheManager(MemoryCacheFactory())
+    val newCacheManager =
+      CacheManager(MemoryCacheFactory(), cacheKeyGenerator = DefaultCacheKeyGenerator, cacheResolver = DefaultCacheResolver)
     val newClient = apolloClient.newBuilder().cacheManager(newCacheManager).build()
 
     assertFriendIsNotCached("1000", newClient)
@@ -286,7 +289,7 @@ class StoreTest {
     apolloClient = ApolloClient.Builder()
         .networkTransport(QueueTestNetworkTransport())
         .customScalarAdapters(customScalarAdapters)
-        .normalizedCache(MemoryCacheFactory(), cacheKeyGenerator = IdCacheKeyGenerator(), cacheResolver = IdCacheKeyResolver())
+        .normalizedCache(MemoryCacheFactory(), cacheKeyGenerator = IdCacheKeyGenerator(), cacheResolver = IdCacheResolver())
         .build()
 
     val query = ColorQuery()

@@ -154,7 +154,7 @@ fun ResolverContext.getFieldKey(): String {
  *
  * Note: this relies on the default format of the field keys as per [DefaultFieldKeyGenerator].
  */
-fun ResolverContext.listItemsInParent(keyArg: String): Map<Any?, Any?> {
+private fun ResolverContext.listItemsInParent(keyArg: String): Map<Any?, Any?> {
   val keyPrefix = "${this.field.name}("
   val filteredParent = this.parent.filterKeys { it.startsWith(keyPrefix) && it.contains("\"$keyArg\":") }
   val items: Map<Any?, Any?> = filteredParent.map { (k, v) ->
@@ -203,16 +203,17 @@ object DefaultCacheResolver : CacheResolver {
  */
 class CacheControlCacheResolver(
     private val maxAgeProvider: MaxAgeProvider,
-    private val delegateResolver: CacheResolver = FieldPolicyCacheResolver(keyScope = CacheKey.Scope.TYPE),
+    private val delegateResolver: CacheResolver,
 ) : CacheResolver {
   /**
    * Creates a new [CacheControlCacheResolver] with no max ages. Use this constructor if you want to consider only the expiration dates.
    */
   constructor(
-      delegateResolver: CacheResolver = FieldPolicyCacheResolver(keyScope = CacheKey.Scope.TYPE),
+      maxAgeProvider: MaxAgeProvider,
+      fieldPolicies: Map<String, FieldPolicies>,
   ) : this(
-      maxAgeProvider = DefaultMaxAgeProvider,
-      delegateResolver = delegateResolver,
+      maxAgeProvider = maxAgeProvider,
+      delegateResolver = FieldPolicyCacheResolver(fieldPolicies = fieldPolicies, keyScope = CacheKey.Scope.TYPE),
   )
 
   override fun resolveField(context: ResolverContext): Any? {
@@ -234,7 +235,7 @@ class CacheControlCacheResolver(
           throw CacheMissException(
               key = context.parentKey.keyToString(),
               fieldName = context.getFieldKey(),
-              stale = true
+              stale = true,
           )
         }
         if (staleDuration >= 0) isStale = true
@@ -249,7 +250,7 @@ class CacheControlCacheResolver(
           throw CacheMissException(
               key = context.parentKey.keyToString(),
               fieldName = context.getFieldKey(),
-              stale = true
+              stale = true,
           )
         }
         if (staleDuration >= 0) isStale = true
@@ -271,15 +272,33 @@ class CacheControlCacheResolver(
 /**
  * A cache resolver that uses `@fieldPolicy` directives to resolve fields and delegates to [DefaultCacheResolver] otherwise.
  *
- * Note: this namespaces the ids with the **schema** type, will lead to cache misses for:
+ * Note: using a [CacheKey.Scope.TYPE] `keyScope` namespaces the ids with the **schema** type, which will lead to cache misses for:
  * - unions
  * - interfaces that have a `@typePolicy` on subtypes.
  *
- * If the ids are unique across the whole service, use `FieldPolicyCacheResolver(keyScope = CacheKey.Scope.SERVICE)`. Otherwise there is
- * no way to resolve the cache key automatically for those cases.
+ * If the ids are unique across the whole service, use [CacheKey.Scope.SERVICE]. Otherwise there is no way to resolve the cache keys
+ * automatically for those cases.
+ *
+ * @param fieldPolicies the field policies where to look for key arguments
+ * @param keyScope the scope of the computed cache keys. Use [CacheKey.Scope.TYPE] to namespace the keys by the schema type name, or
+ * [CacheKey.Scope.SERVICE] if the ids are unique across the whole service.
  */
-@Deprecated("Use FieldPolicyCacheResolver(keyScope) instead")
-val FieldPolicyCacheResolver: CacheResolver = FieldPolicyCacheResolver(keyScope = CacheKey.Scope.TYPE)
+fun FieldPolicyCacheResolver(
+    fieldPolicies: Map<String, FieldPolicies>,
+    keyScope: CacheKey.Scope = CacheKey.Scope.TYPE,
+): CacheResolver = KeyArgumentsCacheResolver(
+    keyArgumentsProvider = object : KeyArgumentsProvider {
+      override fun getKeyArguments(parentType: String, field: CompiledField): List<String> {
+        return fieldPolicies[parentType]?.fieldPolicies[field.name]?.keyArgs.orEmpty()
+      }
+    },
+    keyScope = keyScope,
+)
+
+
+interface KeyArgumentsProvider {
+  fun getKeyArguments(parentType: String, field: CompiledField): List<String>
+}
 
 /**
  * A cache resolver that uses `@fieldPolicy` directives to resolve fields and delegates to [DefaultCacheResolver] otherwise.
@@ -291,15 +310,20 @@ val FieldPolicyCacheResolver: CacheResolver = FieldPolicyCacheResolver(keyScope 
  * If the ids are unique across the whole service, use [CacheKey.Scope.SERVICE]. Otherwise there is no way to resolve the cache keys
  * automatically for those cases.
  *
+ * @param keyArgumentsProvider provides the key arguments for a given field
  * @param keyScope the scope of the computed cache keys. Use [CacheKey.Scope.TYPE] to namespace the keys by the schema type name, or
  * [CacheKey.Scope.SERVICE] if the ids are unique across the whole service.
  */
-fun FieldPolicyCacheResolver(
-    keyScope: CacheKey.Scope = CacheKey.Scope.TYPE,
-) = object : CacheResolver {
+class KeyArgumentsCacheResolver(
+    private val keyArgumentsProvider: KeyArgumentsProvider,
+    private val keyScope: CacheKey.Scope,
+) : CacheResolver {
   override fun resolveField(context: ResolverContext): Any? {
-    val keyArgs = context.field.argumentValues(context.variables) { it.definition.isKey }
-    val keyArgsValues = keyArgs.values
+    val keyArgs =
+      keyArgumentsProvider.getKeyArguments(context.parentType, context.field).ifEmpty { return DefaultCacheResolver.resolveField(context) }
+    val keyArgsMap = context.field.argumentValues(context.variables) { it.definition.name in keyArgs }
+    // Keep the same order as defined in the field policy
+    val keyArgsValues = keyArgs.map { keyArgsMap[it] }
     if (keyArgsValues.isEmpty()) {
       return DefaultCacheResolver.resolveField(context)
     }
@@ -310,11 +334,11 @@ fun FieldPolicyCacheResolver(
     if (type is CompiledListType) {
       // Only support flat lists
       if (type.ofType !is CompiledListType && !(type.ofType is CompiledNotNullType && (type.ofType as CompiledNotNullType).ofType is CompiledListType)) {
-        // Only support single key argument which is a flat list
+        // Only support single key argument which is a list
         if (keyArgsValues.size == 1) {
           val keyArgsValue = keyArgsValues.first() as? List<*>
           if (keyArgsValue != null) {
-            val listItemsInParent: Map<Any?, Any?> = context.listItemsInParent(keyArgs.keys.first())
+            val listItemsInParent: Map<Any?, Any?> = context.listItemsInParent(keyArgs.first())
             return keyArgsValue.mapIndexed { index, value ->
               if (listItemsInParent.containsKey(value)) {
                 listItemsInParent[value]?.let {
@@ -362,3 +386,29 @@ fun FieldPolicyCacheResolver(
     return builder.build()
   }
 }
+
+
+/**
+ * A [CacheResolver] that uses the id/ids argument, if present, to compute the cache key.
+ * The name of the id arguments can be provided (by default "id" and "ids").
+ * If several names are provided, the first present one is used.
+ * Only one level of list is supported - implement [CacheResolver] if you need arbitrary nested lists of objects.
+ *
+ * @param idArguments possible names of the argument containing the id for objects
+ * @param keyScope the scope of the computed cache keys. Use [CacheKey.Scope.TYPE] to namespace the keys by the schema type name, or
+ * [CacheKey.Scope.SERVICE] if the ids are unique across the whole service.
+ *
+ * @see IdCacheKeyGenerator
+ */
+fun IdCacheResolver(
+    idArguments: List<String> = listOf("id", "ids"),
+    keyScope: CacheKey.Scope = CacheKey.Scope.TYPE,
+): CacheResolver = KeyArgumentsCacheResolver(
+    keyArgumentsProvider = object : KeyArgumentsProvider {
+      override fun getKeyArguments(parentType: String, field: CompiledField): List<String> {
+        return idArguments.firstOrNull { argName -> field.arguments.any { it.definition.name == argName } }?.let { listOf(it) }
+            ?: emptyList()
+      }
+    },
+    keyScope = keyScope,
+)
