@@ -301,7 +301,7 @@ interface KeyArgumentsProvider {
 }
 
 /**
- * A cache resolver that uses `@fieldPolicy` directives to resolve fields and delegates to [DefaultCacheResolver] otherwise.
+ * A cache resolver that uses a [KeyArgumentsProvider] to resolve fields and delegates to [DefaultCacheResolver] otherwise.
  *
  * Note: using a [CacheKey.Scope.TYPE] `keyScope` namespaces the ids with the **schema** type, which will lead to cache misses for:
  * - unions
